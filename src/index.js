@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const {graphqlExpress, graphiqlExpress} = require('apollo-server-express');
 const {authenticate} = require('./authentication');
+const buildDataloaders = require('./dataloaders');
 
 const schema = require('./schema');
 
@@ -13,7 +14,11 @@ const start = async () => {
     const buildOptions = async (req, res) => {
         const user = await authenticate(req, mongo.Users);
         return {
-            context: {mongo, user},
+            context: {
+                dataloaders: buildDataloaders(mongo),
+                mongo,
+                user
+            },
             schema,
         };
     };
@@ -21,7 +26,7 @@ const start = async () => {
 
     app.use('/graphiql', graphiqlExpress({
         endpointURL: '/graphql',
-        passHeader: `'Authorization': 'bearer token-foo@bar.com'`,
+        passHeader: `'Authorization': 'bearer token-dpk@test.com'`,
     }));
 
     const PORT = 3030;
