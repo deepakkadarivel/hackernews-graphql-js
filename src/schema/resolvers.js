@@ -1,5 +1,6 @@
 const {ObjectID} = require('mongodb');
 const {URL} = require('url');
+const pubsub = require('../pubsub');
 
 class ValidationError extends Error {
     constructor(message, field) {
@@ -8,7 +9,7 @@ class ValidationError extends Error {
     }
 }
 
-assertValidLink = ({url}) => {
+function assertValidLink({url}) {
     try {
         new URL(url)
     } catch (error) {
@@ -16,18 +17,39 @@ assertValidLink = ({url}) => {
     }
 };
 
+function buildFilters({OR = [], description_contains, url_contains}) {
+    const filter = (description_contains || url_contains) ? {} : null;
+    if (description_contains) {
+        filter.description = {$regex: `.*${description_contains}.*`};
+    }
+    if (url_contains) {
+        filter.url = {$regex: `.*${url_contains}.*`};
+    }
+
+    let filters = filter ? [filter] : [];
+    for (let i = 0; i < OR.length; i++) {
+        filters = filters.concat(buildFilters(OR[i]));
+    }
+    return filters;
+}
+
 module.exports = {
     Query: {
-        allLinks: async (root, data, {mongo: {Links}}) => {
-            return await Links.find({}).toArray();
+        allLinks: async (root, {filter}, {mongo: {Links, Users}}) => {
+            let query = filter ? {$or: buildFilters(filter)} : {};
+            return await Links.find(query).toArray();
         },
     },
     Mutation: {
         createLink: async (root, data, {mongo: {Links}, user}) => {
-            assertValidLink(data);
+            // assertValidLink(data);
             const newLink = Object.assign({postedById: user && user._id}, data);
             const response = await Links.insert(newLink);
-            return Object.assign({id: response.insertedIds[0]}, newLink);
+
+            newLink.id = response.insertedIds[0];
+            pubsub.publish('Link', {Link: {mutation: 'CREATED', node: newLink}});
+
+            return newLink;
         },
 
         createUser: async (root, data, {mongo: {Users}}) => {
@@ -64,6 +86,11 @@ module.exports = {
             if (data.email.password === user.password) {
                 return {token: `token-${user.email}`, user};
             }
+        },
+    },
+    Subscription: {
+        Link: {
+            subscribe: () => pubsub.asyncIterator('Link'),
         },
     },
     Link: {

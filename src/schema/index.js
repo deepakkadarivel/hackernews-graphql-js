@@ -28,6 +28,11 @@ const typeDefs = `
         user: User
     }
     
+    type LinkSubscriptionPayload {
+      mutation: _ModelMutationType!
+      node: Link
+    }
+    
     input AuthProviderSignupData {
         email: AUTH_PROVIDER_EMAIL
     }
@@ -37,8 +42,24 @@ const typeDefs = `
         password: String!
     }
     
+    input LinkSubscriptionFilter {
+      mutation_in: [_ModelMutationType!]
+    }
+    
+    input LinkFilter {
+      OR: [LinkFilter!]
+      description_contains: String
+      url_contains: String
+    }
+    
+    enum _ModelMutationType {
+      CREATED
+      UPDATED
+      DELETED
+    }
+    
     type Query {
-        allLinks: [Link!]!
+        allLinks(filter: LinkFilter): [Link!]!
     }
     
     type Mutation {
@@ -48,6 +69,10 @@ const typeDefs = `
         deleteVote(linkId: ID!): Vote
         signinUser(email: AUTH_PROVIDER_EMAIL): SigninPayload!
         
+    }
+    
+    type Subscription {
+      Link(filter: LinkSubscriptionFilter): LinkSubscriptionPayload
     }
 `;
 

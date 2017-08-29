@@ -5,9 +5,15 @@ const {authenticate} = require('./authentication');
 const buildDataloaders = require('./dataloaders');
 const formatError = require('./formatError');
 
+const {execute, subscribe} = require('graphql');
+const {createServer} = require('http');
+const {SubscriptionServer} = require('subscriptions-transport-ws');
+
 const schema = require('./schema');
 
 const connectMongo = require('./mongo-connector');
+const PORT = 3030;
+
 const start = async () => {
     const mongo = await connectMongo();
     var app = express();
@@ -29,11 +35,16 @@ const start = async () => {
     app.use('/graphiql', graphiqlExpress({
         endpointURL: '/graphql',
         passHeader: `'Authorization': 'bearer token-dpk@test.com'`,
+        subscriptionsEndpoint: `ws://localhost:${PORT}/subscriptions`,
     }));
 
-    const PORT = 3030;
-    app.listen(PORT, () => {
-        console.log(`Hacker news Graphql server running at port ${PORT}`);
+    const server = createServer(app);
+    server.listen(PORT, () => {
+        SubscriptionServer.create(
+            {execute, subscribe, schema},
+            {server, path: '/subscriptions'},
+        );
+        console.log(`Hackernews GraphQL server running on port ${PORT}.`)
     });
 };
 
