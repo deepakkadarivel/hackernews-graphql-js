@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const {graphqlExpress, graphiqlExpress} = require('apollo-server-express');
 const {authenticate} = require('./authentication');
 const buildDataloaders = require('./dataloaders');
+const formatError = require('./formatError');
 
 const schema = require('./schema');
 
@@ -19,6 +20,7 @@ const start = async () => {
                 mongo,
                 user
             },
+            formatError,
             schema,
         };
     };
